@@ -56,7 +56,7 @@ def apply_color_map(CAMs, width, height, orig_image):
         return result
 
 def visualize_and_save_map(
-    result, orig_image, gt_idx=None, class_idx=None, save_name=None
+    result, orig_image, gt_idx=None, class_idx=None
 ):
     # Put class label text on the result.
     if class_idx is not None:
@@ -106,10 +106,13 @@ counter = 0
 all_images = glob.glob('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\input\\GTSRB_Final_Test_Images\\GTSRB\\Final_Test\\Images\\*.ppm')
 correct_count = 0
 frame_count = 0 # To count total frames.
-total_fps = 0 # To get the final frames per second. 
-for i, image_path in enumerate(all_images):
+total_fps = 0 # To get the final frames per second.
+
+# Define Cam
+capture = cv2.VideoCapture(1)
+while True:
     # Read the image.
-    image = cv2.imread(image_path)
+    _, image = capture.read()
     orig_image = image.copy()
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     height, width, _ = orig_image.shape
@@ -125,17 +128,12 @@ for i, image_path in enumerate(all_images):
     probs = F.softmax(outputs).data.squeeze()
     # Get the class indices of top k probabilities.
     class_idx = topk(probs, 1)[1].int()
-    # Get the ground truth.
-    image_name = image_path.split(os.path.sep)[-1]
-    gt_idx = gt_df.loc[image_name].ClassId
-    # Check whether correct prediction or not.
-    if gt_idx == class_idx:
-        correct_count += 1
+
     # Generate class activation mapping for the top1 prediction.
     CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
     # Show and save the results.
     result = apply_color_map(CAMs, width, height, orig_image)
-    visualize_and_save_map(result, orig_image, gt_idx, class_idx, save_name)
+    visualize_and_save_map(result, orig_image, None, class_idx)
     counter += 1
     print(f"Image: {counter}")
     # Get the current fps.
@@ -144,6 +142,9 @@ for i, image_path in enumerate(all_images):
     total_fps += fps
     # Increment frame count.
     frame_count += 1
+
+    if cv2.waitKey(1) == ord("q"):
+        break
 
 print(f"Total number of test images: {len(all_images)}")
 print(f"Total correct predictions: {correct_count}")
