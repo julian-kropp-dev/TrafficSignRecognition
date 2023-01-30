@@ -11,34 +11,16 @@ from albumentations.pytorch import ToTensorV2
 from torch.nn import functional as F
 from torch import topk
 
-from model import build_model
-
 # Define computation device.
 device = 'cuda'
 # Class names.
-sign_names_df = pd.read_csv(
-    '../../../OneDrive - Carl von Ossietzky Universität Oldenburg/Vorlesungen/Proseminar/ProjectSign/input/signnames.csv')
+sign_names_df = pd.read_csv("signnames.csv")
 class_names = sign_names_df.SignName.tolist()
 
-# DataFrame for ground truth.
-gt_df = pd.read_csv(
-    '../../../OneDrive - Carl von Ossietzky Universität Oldenburg/Vorlesungen/Proseminar/ProjectSign/input/GTSRB_Final_Test_GT/GT-final_test.csv',
-    delimiter=';'
-)
-gt_df = gt_df.set_index('Filename', drop=True)
-
 # Initialize model, switch to eval model, load trained weights.
-model = build_model(
-    pretrained=False,
-    fine_tune=False,
-    num_classes=43
-).to(device)
-model = model.eval()
-model.load_state_dict(
-    torch.load(
-        '../outputs/model.pth', map_location=device
-    )['model_state_dict']
-)
+model = torch.load(
+        'model.pth',map_location=torch.device('cpu')
+    )
 
 # https://github.com/zhoubolei/CAM/blob/master/pytorch_CAM.py
 def returnCAM(feature_conv, weight_softmax, class_idx):
