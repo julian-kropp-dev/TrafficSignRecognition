@@ -3,7 +3,6 @@ import cv2
 import torch
 import glob as glob
 import pandas as pd
-import os
 import albumentations as A
 import time
 
@@ -14,28 +13,23 @@ from torch import topk
 from model import build_model
 
 # Define computation device.
-device = 'cuda'
+device = 'cpu'
 # Class names.
-sign_names_df = pd.read_csv('../input/signnames.csv')
+sign_names_df = pd.read_csv('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\signnames.csv')
 class_names = sign_names_df.SignName.tolist()
 
-# DataFrame for ground truth.
-gt_df = pd.read_csv(
-    '../input/GTSRB_Final_Test_GT/GT-final_test.csv', 
-    delimiter=';'
-)
-gt_df = gt_df.set_index('Filename', drop=True)
+
 
 # Initialize model, switch to eval model, load trained weights.
 model = build_model(
     pretrained=False,
-    fine_tune=False, 
+    fine_tune=False,
     num_classes=43
 ).to(device)
 model = model.eval()
 model.load_state_dict(
     torch.load(
-        '../outputs/model.pth', map_location=torch.device('cpu')
+        'C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\model.pth', map_location=torch.device('cpu')
     )['model_state_dict']
 )
 
@@ -67,27 +61,25 @@ def visualize_and_save_map(
     # Put class label text on the result.
     if class_idx is not None:
         cv2.putText(
-            result, 
-            f"Pred: {str(class_names[int(class_idx)])}", (5, 20), 
+            result,
+            f"Schild: {str(class_names[int(class_idx)])}", (5, 20),
             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2,
             cv2.LINE_AA
         )
     if gt_idx is not None:
         cv2.putText(
-            result, 
-            f"GT: {str(class_names[int(gt_idx)])}", (5, 40), 
+            result,
+            f"GT: {str(class_names[int(gt_idx)])}", (5, 40),
             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2,
             cv2.LINE_AA
         )
     orig_image = cv2.resize(orig_image, (224, 224))
     img_concat = cv2.hconcat([
-        np.array(result, dtype=np.uint8), 
+        np.array(result, dtype=np.uint8),
         np.array(orig_image, dtype=np.uint8)
     ])
     cv2.imshow('Result', img_concat)
     cv2.waitKey(1)
-    if save_name is not None:
-        cv2.imwrite(f"../outputs/test_results/CAM_{save_name}.jpg", img_concat)
 
 # Hook the feature extractor.
 # https://github.com/zhoubolei/CAM/blob/master/pytorch_CAM.py
@@ -111,7 +103,7 @@ transform = A.Compose([
 
 counter = 0
 # Run for all the test images.
-all_images = glob.glob('../input/GTSRB_Final_Test_Images/GTSRB/Final_Test/Images/*.ppm')
+all_images = glob.glob('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\input\\GTSRB_Final_Test_Images\\GTSRB\\Final_Test\\Images\\*.ppm')
 correct_count = 0
 frame_count = 0 # To count total frames.
 total_fps = 0 # To get the final frames per second. 
@@ -141,8 +133,6 @@ for i, image_path in enumerate(all_images):
         correct_count += 1
     # Generate class activation mapping for the top1 prediction.
     CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
-    # File name to save the resulting CAM image with.
-    save_name = f"{image_path.split('/')[-1].split('.')[0]}"
     # Show and save the results.
     result = apply_color_map(CAMs, width, height, orig_image)
     visualize_and_save_map(result, orig_image, gt_idx, class_idx, save_name)
