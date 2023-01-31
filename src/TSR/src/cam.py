@@ -2,7 +2,6 @@
 import numpy as np
 import cv2
 import torch
-import glob as glob
 import pandas as pd
 import albumentations as A
 import time
@@ -14,9 +13,9 @@ from model import build_model
 # Define computation device.
 device = 'cpu'
 # Paths
-sign_names_df = pd.read_csv('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\signnames.csv')
+sign_names_df = pd.read_csv('/Users/julian/Desktop/TrafficSignRecognition/src/TSR/src/signnames.csv')
 class_names = sign_names_df.SignName.tolist()
-model_path = 'C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\model.pth'
+model_path = '/Users/julian/Desktop/TrafficSignRecognition/src/TSR/src/model.pth'
 
 #variables
 images_counter = 0
