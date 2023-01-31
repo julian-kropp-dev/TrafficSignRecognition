@@ -1,3 +1,4 @@
+#imports
 import numpy as np
 import cv2
 import torch
@@ -5,22 +6,23 @@ import glob as glob
 import pandas as pd
 import albumentations as A
 import time
-
 from albumentations.pytorch import ToTensorV2
 from torch.nn import functional as F
 from torch import topk
-
 from model import build_model
 
 # Define computation device.
 device = 'cpu'
-# Class names.
+# Paths
 sign_names_df = pd.read_csv('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\signnames.csv')
 class_names = sign_names_df.SignName.tolist()
+model_path = 'C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\model.pth'
 
+#variables
+images_counter = 0
+camera = cv2.VideoCapture(0)
 
-
-# Initialize model, switch to eval model, load trained weights.
+# Initialize model
 model = build_model(
     pretrained=False,
     fine_tune=False,
@@ -29,11 +31,11 @@ model = build_model(
 model = model.eval()
 model.load_state_dict(
     torch.load(
-        'C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\src\\model.pth', map_location=torch.device('cpu')
+        model_path, map_location=torch.device('cpu')
     )['model_state_dict']
 )
 
-# https://github.com/zhoubolei/CAM/blob/master/pytorch_CAM.py
+#methods
 def returnCAM(feature_conv, weight_softmax, class_idx):
     # Generate the class activation maps upsample to 256x256.
     size_upsample = (256, 256)
@@ -55,22 +57,26 @@ def apply_color_map(CAMs, width, height, orig_image):
         result = cv2.resize(result, (224, 224))
         return result
 
-def visualize_and_save_map(
-    result, orig_image, gt_idx=None, class_idx=None
-):
-    # Put class label text on the result.
+def visualize_and_save_map(result, orig_image, gt_idx=None, class_idx=None):
+    # Put class label text on the result with white background.
     if class_idx is not None:
+        text = f"Schild: {str(class_names[int(class_idx)])}"
+        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+        cv2.rectangle(result, (5, 20 - int(text_height*1.5)), (5 + text_width, 30), (255, 255, 255), cv2.FILLED)
         cv2.putText(
             result,
-            f"Schild: {str(class_names[int(class_idx)])}", (5, 20),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2,
+            text, (5, 20),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1,
             cv2.LINE_AA
         )
     if gt_idx is not None:
+        text = f"GT: {str(class_names[int(gt_idx)])}"
+        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+        cv2.rectangle(result, (5, 40 - int(text_height*1.5)), (5 + text_width, 40), (255, 255, 255), cv2.FILLED)
         cv2.putText(
             result,
-            f"GT: {str(class_names[int(gt_idx)])}", (5, 40),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2,
+            text, (5, 40),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1,
             cv2.LINE_AA
         )
     orig_image = cv2.resize(orig_image, (224, 224))
@@ -78,14 +84,13 @@ def visualize_and_save_map(
         np.array(result, dtype=np.uint8),
         np.array(orig_image, dtype=np.uint8)
     ])
-    cv2.imshow('Result', img_concat)
+    cv2.imshow('Live-Bild: Julians Verkehrsschilderkennung', img_concat)
     cv2.waitKey(1)
 
-# Hook the feature extractor.
-# https://github.com/zhoubolei/CAM/blob/master/pytorch_CAM.py
 features_blobs = []
 def hook_feature(module, input, output):
     features_blobs.append(output.data.cpu().numpy())
+
 model._modules.get('features').register_forward_hook(hook_feature)
 # Get the softmax weight.
 params = list(model.parameters())
@@ -101,57 +106,36 @@ transform = A.Compose([
     ToTensorV2(),
     ])
 
-counter = 0
-# Run for all the test images.
-all_images = glob.glob('C:\\Users\\Julian\\PycharmProjects\\TrafficSignRecognition\\src\\TSR\\input\\GTSRB_Final_Test_Images\\GTSRB\\Final_Test\\Images\\*.ppm')
-correct_count = 0
-frame_count = 0 # To count total frames.
-total_fps = 0 # To get the final frames per second.
+#main-program
+if __name__ == '__main__':
+    while True:
+        # Read the image.
+        _, image = camera.read()
+        orig_image = image.copy()
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width, _ = orig_image.shape
+        # Apply the image transforms.
+        image_tensor = transform(image=image)['image']
+        # Add batch dimension.
+        image_tensor = image_tensor.unsqueeze(0)
+        # Forward pass through model.
+        start_time = time.time()
+        outputs = model(image_tensor.to(device))
+        end_time = time.time()
+        # Get the softmax probabilities.
+        probs = F.softmax(outputs).data.squeeze()
+        # Get the class indices of top k probabilities.
+        class_idx = topk(probs, 1)[1].int()
 
-# Define Cam
-capture = cv2.VideoCapture(1)
-while True:
-    # Read the image.
-    _, image = capture.read()
-    orig_image = image.copy()
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    height, width, _ = orig_image.shape
-    # Apply the image transforms.
-    image_tensor = transform(image=image)['image']
-    # Add batch dimension.
-    image_tensor = image_tensor.unsqueeze(0)
-    # Forward pass through model.
-    start_time = time.time()
-    outputs = model(image_tensor.to(device))
-    end_time = time.time()
-    # Get the softmax probabilities.
-    probs = F.softmax(outputs).data.squeeze()
-    # Get the class indices of top k probabilities.
-    class_idx = topk(probs, 1)[1].int()
+        # Generate class activation mapping for the top1 prediction.
+        CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
+        # Show and save the results.
+        result = apply_color_map(CAMs, width, height, orig_image)
+        visualize_and_save_map(result, orig_image, None, class_idx)
+        images_counter += 1
+        print(f"Bild-Nr: {images_counter}, Erkannt: {str(class_names[int(class_idx)])}")
 
-    # Generate class activation mapping for the top1 prediction.
-    CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
-    # Show and save the results.
-    result = apply_color_map(CAMs, width, height, orig_image)
-    visualize_and_save_map(result, orig_image, None, class_idx)
-    counter += 1
-    print(f"Image: {counter}")
-    # Get the current fps.
-    fps = 1 / (end_time - start_time)
-    # Add `fps` to `total_fps`.
-    total_fps += fps
-    # Increment frame count.
-    frame_count += 1
+        if cv2.waitKey(1) == ord("q"):
+            break
 
-    if cv2.waitKey(1) == ord("q"):
-        break
-
-print(f"Total number of test images: {len(all_images)}")
-print(f"Total correct predictions: {correct_count}")
-print(f"Accuracy: {correct_count/len(all_images)*100:.3f}")
-
-# Close all frames and video windows.
-cv2.destroyAllWindows()
-# calculate and print the average FPS
-avg_fps = total_fps / frame_count
-print(f"Average FPS: {avg_fps:.3f}")
+    cv2.destroyAllWindows()
