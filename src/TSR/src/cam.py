@@ -100,7 +100,7 @@ if __name__ == '__main__':
         CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
         # Show and save the results.
         result = apply_color_map(CAMs, width, height, orig_image)
-        visualize_and_save_map(result, orig_image, None, class_idx)
+        #visualize_and_save_map(result, orig_image, None, class_idx)
         images_counter += 1
         print(f"Bild-Nr: {images_counter}, Erkannt: {str(class_names[int(class_idx)])}")
 
