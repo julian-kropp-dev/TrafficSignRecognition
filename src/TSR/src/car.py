@@ -12,8 +12,8 @@
 **********************************************************************
 '''
 
-from .SunFounder_TB6612 import TB6612
-from .SunFounder_PCA9685 import PCA9685
+from SunFounder_TB6612 import TB6612
+from SunFounder_PCA9685 import PCA9685
 
 class Back_Wheels(object):
 	''' Back wheels control class '''
