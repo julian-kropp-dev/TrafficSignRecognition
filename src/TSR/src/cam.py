@@ -1,42 +1,26 @@
-#imports
-import numpy as np
 import cv2
+import numpy as np
 import torch
 import pandas as pd
 import albumentations as A
-import time
 from albumentations.pytorch import ToTensorV2
 from torch.nn import functional as F
 from torch import topk
 from model import build_model
 
-# Define computation device.
 device = 'cpu'
-# Paths
-sign_names_df = pd.read_csv('/Users/julian/Desktop/TrafficSignRecognition/src/TSR/src/signnames.csv')
+sign_names_df = pd.read_csv('signnames.csv')
 class_names = sign_names_df.SignName.tolist()
-model_path = '/Users/julian/Desktop/TrafficSignRecognition/src/TSR/src/model.pth'
+model_path = 'model.pth'
 
-#variables
 images_counter = 0
 camera = cv2.VideoCapture(0)
 
-# Initialize model
-model = build_model(
-    pretrained=False,
-    fine_tune=False,
-    num_classes=43
-).to(device)
+model = build_model(num_classes=43).to(device)
 model = model.eval()
-model.load_state_dict(
-    torch.load(
-        model_path, map_location=torch.device('cpu')
-    )['model_state_dict']
-)
+model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))['model_state_dict'])
 
-#methods
 def returnCAM(feature_conv, weight_softmax, class_idx):
-    # Generate the class activation maps upsample to 256x256.
     size_upsample = (256, 256)
     bz, nc, h, w = feature_conv.shape
     output_cam = []
@@ -57,7 +41,6 @@ def apply_color_map(CAMs, width, height, orig_image):
         return result
 
 def visualize_and_save_map(result, orig_image, gt_idx=None, class_idx=None):
-    # Put class label text on the result with white background.
     if class_idx is not None:
         text = f"Schild: {str(class_names[int(class_idx)])}"
         (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
@@ -65,16 +48,6 @@ def visualize_and_save_map(result, orig_image, gt_idx=None, class_idx=None):
         cv2.putText(
             result,
             text, (5, 20),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1,
-            cv2.LINE_AA
-        )
-    if gt_idx is not None:
-        text = f"GT: {str(class_names[int(gt_idx)])}"
-        (text_width, text_height) = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
-        cv2.rectangle(result, (5, 40 - int(text_height*1.5)), (5 + text_width, 40), (255, 255, 255), cv2.FILLED)
-        cv2.putText(
-            result,
-            text, (5, 40),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1,
             cv2.LINE_AA
         )
@@ -118,19 +91,16 @@ if __name__ == '__main__':
         # Add batch dimension.
         image_tensor = image_tensor.unsqueeze(0)
         # Forward pass through model.
-        start_time = time.time()
         outputs = model(image_tensor.to(device))
-        end_time = time.time()
         # Get the softmax probabilities.
         probs = F.softmax(outputs).data.squeeze()
         # Get the class indices of top k probabilities.
         class_idx = topk(probs, 1)[1].int()
-
         # Generate class activation mapping for the top1 prediction.
         CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
         # Show and save the results.
         result = apply_color_map(CAMs, width, height, orig_image)
-        visualize_and_save_map(result, orig_image, None, class_idx)
+        #visualize_and_save_map(result, orig_image, None, class_idx)
         images_counter += 1
         print(f"Bild-Nr: {images_counter}, Erkannt: {str(class_names[int(class_idx)])}")
 
