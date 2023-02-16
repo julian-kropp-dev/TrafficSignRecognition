@@ -2,9 +2,9 @@ import RPi.GPIO as GPIO
 import time
 
 # Pin-Definitionen
-MOTOR_A = (13, 19) # IN1 und IN2
-MOTOR_B = (16, 26) # IN3 und IN4
-STEERING = 20
+MOTOR_A = (17, 4) # IN1 und IN2
+MOTOR_B = (27, 5) # IN3 und IN4
+STEERING = 0
 
 # Pin-Setup
 GPIO.setmode(GPIO.BCM)
