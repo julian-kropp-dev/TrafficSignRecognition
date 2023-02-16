@@ -1,58 +1,177 @@
-import RPi.GPIO as GPIO
-import time
+#!/usr/bin/env python
+'''
+**********************************************************************
+* Filename    : back_wheels.py
+* Description : A module to control the back wheels of RPi Car
+* Author      : Cavon
+* Brand       : SunFounder
+* E-mail      : service@sunfounder.com
+* Website     : www.sunfounder.com
+* Update      : Cavon    2016-09-13    New release
+*               Cavon    2016-11-04    fix for submodules
+**********************************************************************
+'''
 
-# Pin-Definitionen
-MOTOR_A = 17 # IN1 und IN2
-MOTOR_B = 27# IN3 und IN4
-STEERING = 0
+from .SunFounder_TB6612 import TB6612
+from .SunFounder_PCA9685 import PCA9685
 
-# Pin-Setup
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(MOTOR_A, GPIO.OUT)
-GPIO.setup(MOTOR_B, GPIO.OUT)
-GPIO.setup(STEERING, GPIO.OUT)
+class Back_Wheels(object):
+	''' Back wheels control class '''
+	Motor_A = 17
+	Motor_B = 27
 
-# Funktionen zum Vorwärtsfahren, Rückwärtsfahren und Anhalten
-def forward():
-    GPIO.output(MOTOR_A, GPIO.HIGH)
-    GPIO.output(MOTOR_B, GPIO.HIGH)
+	PWM_A = 4
+	PWM_B = 5
 
-def reverse():
-    GPIO.output(MOTOR_A, GPIO.LOW)
-    GPIO.output(MOTOR_B, GPIO.LOW)
+	_DEBUG = False
+	_DEBUG_INFO = 'DEBUG "back_wheels.py":'
 
-def stop():
-    GPIO.output(MOTOR_A, GPIO.LOW)
-    GPIO.output(MOTOR_B, GPIO.LOW)
+	def __init__(self, debug=False, bus_number=1):
+		''' Init the direction channel and pwm channel '''
+		self.forward_A = True
+		self.forward_B = True
 
-def steer(angle):
-    duty_cycle = (angle / 180.0) * 10.0 + 2.5
-    pwm = GPIO.PWM(STEERING, 50)
-    pwm.start(duty_cycle)
-    time.sleep(0.5)
-    pwm.stop()
+		self.left_wheel = TB6612.Motor(self.Motor_A, offset=self.forward_A)
+		self.right_wheel = TB6612.Motor(self.Motor_B, offset=self.forward_B)
 
-# Testfahrt
-try:
-    while True:
-        # Vorwärtsfahren für 2 Sekunden
-        forward()
-        steer(90)
-        time.sleep(2)
+		self.pwm = PCA9685.PWM(bus_number=bus_number)
+		def _set_a_pwm(value):
+			pulse_wide = int(self.pwm.map(value, 0, 100, 0, 4095))
+			self.pwm.write(self.PWM_A, 0, pulse_wide)
 
-        # Anhalten für 1 Sekunde
-        stop()
-        time.sleep(1)
+		def _set_b_pwm(value):
+			pulse_wide = int(self.pwm.map(value, 0, 100, 0, 4095))
+			self.pwm.write(self.PWM_B, 0, pulse_wide)
 
-        # Rückwärtsfahren für 2 Sekunden
-        reverse()
-        steer(45)
-        time.sleep(2)
+		self.left_wheel.pwm  = _set_a_pwm
+		self.right_wheel.pwm = _set_b_pwm
 
-        # Anhalten für 1 Sekunde
-        stop()
-        time.sleep(1)
+		self._speed = 0
 
-# Programm beenden mit Strg + C
-except KeyboardInterrupt:
-    GPIO.cleanup()
+		self.debug = debug
+		self._debug_('Set left wheel to #%d, PWM channel to %d' % (self.Motor_A, self.PWM_A))
+		self._debug_('Set right wheel to #%d, PWM channel to %d' % (self.Motor_B, self.PWM_B))
+
+	def _debug_(self,message):
+		if self._DEBUG:
+			print(self._DEBUG_INFO,message)
+
+	def forward(self):
+		''' Move both wheels forward '''
+		self.left_wheel.forward()
+		self.right_wheel.forward()
+		self._debug_('Running forward')
+
+	def backward(self):
+		''' Move both wheels backward '''
+		self.left_wheel.backward()
+		self.right_wheel.backward()
+		self._debug_('Running backward')
+
+	def stop(self):
+		''' Stop both wheels '''
+		self.left_wheel.stop()
+		self.right_wheel.stop()
+		self._debug_('Stop')
+
+	@property
+	def speed(self, speed):
+		return self._speed
+
+	@speed.setter
+	def speed(self, speed):
+		self._speed = speed
+		''' Set moving speeds '''
+		self.left_wheel.speed = self._speed
+		self.right_wheel.speed = self._speed
+		self._debug_('Set speed to %s' % self._speed)
+
+	@property
+	def debug(self):
+		return self._DEBUG
+
+	@debug.setter
+	def debug(self, debug):
+		''' Set if debug information shows '''
+		if debug in (True, False):
+			self._DEBUG = debug
+		else:
+			raise ValueError('debug must be "True" (Set debug on) or "False" (Set debug off), not "{0}"'.format(debug))
+
+		if self._DEBUG:
+			print(self._DEBUG_INFO, "Set debug on")
+			self.left_wheel.debug = True
+			self.right_wheel.debug = True
+			self.pwm.debug = True
+		else:
+			print(self._DEBUG_INFO, "Set debug off")
+			self.left_wheel.debug = False
+			self.right_wheel.debug = False
+			self.pwm.debug = False
+
+	def ready(self):
+		''' Get the back wheels to the ready position. (stop) '''
+		self._debug_('Turn to "Ready" position')
+		self.left_wheel.offset = self.forward_A
+		self.right_wheel.offset = self.forward_B
+		self.stop()
+
+	def calibration(self):
+		''' Get the front wheels to the calibration position. '''
+		self._debug_('Turn to "Calibration" position')
+		self.speed = 50
+		self.forward()
+		self.cali_forward_A = self.forward_A
+		self.cali_forward_B = self.forward_B
+
+	def cali_left(self):
+		''' Reverse the left wheels forward direction in calibration '''
+		self.cali_forward_A = (1 + self.cali_forward_A) & 1
+		self.left_wheel.offset = self.cali_forward_A
+		self.forward()
+
+	def cali_right(self):
+		''' Reverse the right wheels forward direction in calibration '''
+		self.cali_forward_B = (1 + self.cali_forward_B) & 1
+		self.right_wheel.offset = self.cali_forward_B
+		self.forward()
+
+	def cali_ok(self):
+		''' Save the calibration value '''
+		self.forward_A = self.cali_forward_A
+		self.forward_B = self.cali_forward_B
+		self.stop()
+
+def test():
+	import time
+	back_wheels = Back_Wheels()
+	DELAY = 0.01
+	try:
+		back_wheels.forward()
+		for i in range(0, 100):
+			back_wheels.speed = i
+			print("Forward, speed =", i)
+			time.sleep(DELAY)
+		for i in range(100, 0, -1):
+			back_wheels.speed = i
+			print("Forward, speed =", i)
+			time.sleep(DELAY)
+
+		back_wheels.backward()
+		for i in range(0, 100):
+			back_wheels.speed = i
+			print("Backward, speed =", i)
+			time.sleep(DELAY)
+		for i in range(100, 0, -1):
+			back_wheels.speed = i
+			print("Backward, speed =", i)
+			time.sleep(DELAY)
+	except KeyboardInterrupt:
+		print("KeyboardInterrupt, motor stop")
+		back_wheels.stop()
+	finally:
+		print("Finished, motor stop")
+		back_wheels.stop()
+
+if __name__ == '__main__':
+	test()
