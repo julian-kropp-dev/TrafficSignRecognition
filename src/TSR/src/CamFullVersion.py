@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import numpy as np
 import torch
@@ -14,7 +16,7 @@ class_names = sign_names_df.SignName.tolist()
 model_path = 'model.pth'
 
 images_counter = 0
-camera = cv2.VideoCapture(0)
+cameraView = cv2.VideoCapture(0)
 
 model = build_model(num_classes=43).to(device)
 model = model.eval()
@@ -82,9 +84,9 @@ transform = A.Compose([
 if __name__ == '__main__':
     while True:
         # Read the image.
-        _, image = camera.read()
+        _, image = cameraView.read()
         orig_image = image.copy()
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         height, width, _ = orig_image.shape
         # Apply the image transforms.
         image_tensor = transform(image=image)['image']
@@ -94,15 +96,19 @@ if __name__ == '__main__':
         outputs = model(image_tensor.to(device))
         # Get the softmax probabilities.
         probs = F.softmax(outputs).data.squeeze()
+        per = torch.nn.functional.softmax(outputs, dim=1)
+        percent, _ = per.topk(1, dim=1)
+        percent_value = percent.item()
         # Get the class indices of top k probabilities.
         class_idx = topk(probs, 1)[1].int()
         # Generate class activation mapping for the top1 prediction.
         CAMs = returnCAM(features_blobs[0], weight_softmax, class_idx)
         # Show and save the results.
         result = apply_color_map(CAMs, width, height, orig_image)
-        #visualize_and_save_map(result, orig_image, None, class_idx)
+        visualize_and_save_map(result, orig_image, None, class_idx)
         images_counter += 1
-        print(f"Bild-Nr: {images_counter}, Erkannt: {str(class_names[int(class_idx)])}")
+        if percent_value > 0.95:
+            print(f"Bild-Nr: {images_counter}, Erkannt: {str(class_names[int(class_idx)])}")
 
         if cv2.waitKey(1) == ord("q"):
             break
