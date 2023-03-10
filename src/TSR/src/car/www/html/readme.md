@@ -1,4 +1,4 @@
-#Steuerung des PiCars
+#Steuerung des PiCars 
 Die Steuerung des PiCars geschieht über den verbauten RaspberryPi 4. 
 Die Erkennung und Zuordnung der Verkehrsschilder geschieht aus Leistungsgründen **nicht** auf dem Raspberry, sondern auf einem externen Rechner.
 
@@ -10,3 +10,4 @@ Die folgenden Dateien bauen eine Webseite auf, welche mit der Hilfe von *request
 
 Diese Dateien sind außschließlich auf dem Pi zu installieren und lassen sich bei mir unter dem Dateipfad /var/www/html auf diesem finden.
 Die restlichen Dateien zur Zuordnung der Verkehrsschilder liegen auf einem externen Laptop/PC und werden über den Dateipfad TrafficSignRecognition/src/TSR/src/ eingebunden.
+Die Dateien zur Steuerung des Autos (Ordner *car*) befindet sich also nur hier, weil die Dateien an einem Ort gesammelt werden sollen.
