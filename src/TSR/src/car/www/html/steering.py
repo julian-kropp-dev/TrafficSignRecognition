@@ -8,7 +8,7 @@ type = sys.argv[1]
 
 kit = ServoKit(channels=16)
 
-#setzt Servos auf Nullpunk
+#setzt Servos auf Nullpunkt
 kit.servo[0].angle = 180
 kit.servo[0].angle = 0
 kit.servo[0].angle = 0

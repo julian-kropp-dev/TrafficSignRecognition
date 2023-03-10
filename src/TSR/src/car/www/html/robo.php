@@ -1,7 +1,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width" />
-  <title>LED Control</title>
+  <title>Control</title>
 </head>
 <body>
   <form method="get" action="robo.php">

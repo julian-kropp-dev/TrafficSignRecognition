@@ -42,6 +42,22 @@ transform = A.Compose([
     ToTensorV2(),
 ])
 
+
+def sendRequest(sign_type, parameter):
+    requests.get(f"{ipRPI}?type={sign_type}&speed={parameter}")
+
+
+def printRecognition(counter, sign_type, sign_percent):
+    print(f"####\n# Bild-Nr: {counter}, Erkanntes Schild: {sign_type}, Zu: {sign_percent}%\n####")
+
+
+def logData(actual_time, counter, sign_type, sign_percent):
+    f = open("log.txt", "a")
+    f.write(
+        f"####\n# {actual_time} Bild-Nr: {counter}, Erkanntes Schild: {sign_type}, Zu: {sign_percent}%\n####")
+    f.close()
+
+
 # Hier beginnt das Programm
 if __name__ == '__main__':
     try:
@@ -65,46 +81,37 @@ if __name__ == '__main__':
             # Bildcounter erhöhen
             images_counter += 1
 
-            f = open("log.txt", "a")
-            f.write(f"####\n# {datetime.now()} Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
-            f.close()
+            logData(datetime.now(), images_counter, str(class_names[int(class_idx)]), percent_value)
 
             # nur wenn die Wahrscheinlichkeit über 90% liegt, damit weiterarbeiten
             if percent_value > 0.90:
                 trafficSign = str(class_names[int(class_idx)])
                 if trafficSign == "120km/h":
-                    requests.get(f"{ipRPI}?type=F&speed=4000")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
-
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("F", "4000")
                 elif trafficSign == "50km/h":
-                    requests.get(f"{ipRPI}?type=F&speed=2000")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("F", "2000")
                 elif trafficSign == "Durchfahrt verboten":
-                    requests.get(f"{ipRPI}?type=B&speed=1000")
-                    requests.get(f"{ipRPI}?type=F&speed=0")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("B", "1000")
+                    sendRequest("F", "0")
                 elif trafficSign == "Vorgeschriebene Fahrtrichtung links":
-                    requests.get(f"{ipRPI}?type=L")
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("L", "0")
                     time.sleep(1.5)
-                    requests.get(f"{ipRPI}?type=G")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
+                    sendRequest("G", "0")
                 elif trafficSign == "Vorgeschriebene Fahrtrichtung rechts":
-                    requests.get(f"{ipRPI}?type=R")
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("R", "0")
                     time.sleep(1.5)
-                    requests.get(f"{ipRPI}?type=G")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
+                    sendRequest("G", "0")
                 elif trafficSign == "Stopp":
-                    requests.get(f"{ipRPI}?type=F&speed=0")
+                    printRecognition(images_counter, str(class_names[int(class_idx)]), percent_value)
+                    sendRequest("F", "0")
                     time.sleep(3)
-                    requests.get(f"{ipRPI}?type=F&speed=2000")
-                    print(
-                        f"####\n# Bild-Nr: {images_counter}, Erkanntes Schild: {str(class_names[int(class_idx)])}, Zu: {percent_value}%\n####")
+                    sendRequest("F", "2000")
 
     except KeyboardInterrupt:
-        requests.get(f"{ipRPI}?type=F&speed=0")
+        sendRequest("F", "0")
         exit()
