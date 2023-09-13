@@ -1,4 +1,4 @@
-#Steuerung der Verkehrszeichenerkennung
+# Steuerung der Verkehrszeichenerkennung
 
 Die Erkennung und Zuordnung der Verkehrsschilder erfolgt aus Leistungsgründen **nicht** auf dem RaspberryPi, sondern auf einem Laptop/PC.
 Der RaspberryPi hat einfach nicht genug Grafik-Leistung, um eine halbwegs flüssige Erkennung zu gewährleisten.
