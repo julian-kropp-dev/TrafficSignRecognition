@@ -1,4 +1,4 @@
-#Steuerung des PiCars 
+# Steuerung des PiCars 
 Die Steuerung des PiCars geschieht über den verbauten RaspberryPi 4. 
 Die Erkennung und Zuordnung der Verkehrsschilder geschieht aus Leistungsgründen **nicht** auf dem Raspberry, sondern auf einem externen Rechner.
 
